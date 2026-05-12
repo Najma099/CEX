@@ -15,7 +15,6 @@ const app = express();
 
 app.use(cors());
 app.use(express.json());
-
 app.get("/health", async (_req, res) => {
   await pingRedis();
   res.json({ ok: true });
