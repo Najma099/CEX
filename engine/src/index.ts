@@ -1,7 +1,7 @@
 import "dotenv/config";
 import { createClient } from "redis";
 import { env } from "./utils/env.js";
-import { getBalance, getDepth } from "./store/exchange-store.js";
+import { createOrder, deleteOrder, getBalance, getDepth, getOrder } from "./store/exchange-store.js";
 
 export type EngineCommandType =
   | "create_order"
@@ -71,6 +71,12 @@ function handleEngineRequest(message: EngineRequest): unknown {
       return getBalance(message.payload.userId as string);
     case 'get_depth':
       return getDepth(message.payload.symbol as string);
+    case 'create_order':
+      return createOrder(message.payload);
+    case 'get_order':
+      return getOrder(message.payload);
+    case 'cancel_order':
+      return deleteOrder(message.payload);
     default:
       throw new Error(`Not impleented: ${message.type}`)
   }

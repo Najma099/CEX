@@ -85,9 +85,7 @@ function seedUserIfNeeded(userId: string) {
 }
 
 export function getBalance(userId: string) {
-  if(!BALANCES.has(userId)) {
-    seedUserIfNeeded(userId)
-  }
+  seedUserIfNeeded(userId);
   return BALANCES.get(userId);
 }
 
@@ -205,7 +203,7 @@ export function createOrder(payload: Record<string, unknown>) {
   order.status = order.filledQty === 0? 'open' : order.filledQty < order.qty ? 'partially_filled' : 'filled';
 
     if(type == "limit" && order.filledQty < order.qty) {
-      
+
       const restingOrder: RestingOrder =  {
         orderId: order.orderId,
         userId: order.userId,
@@ -232,4 +230,35 @@ export function createOrder(payload: Record<string, unknown>) {
     };
 }
 
+export function deleteOrder(payload: Record<string, unknown>) {
+  const orderId = payload.orderId as string;
+  const order = ORDERS.get(orderId);
 
+  if(!order) {
+    throw new Error("Order not found");
+  }
+
+  if(order.status === "cancelled") throw new Error('Cannot cancel already cancelled order');
+  if(order.status === "filled") throw new Error('Cannot cancelled a filled order');
+
+  const book = ORDERBOOKS.get(order.symbol);
+  if(book) {
+    const side = order.side === 'buy' ? book.bids : book.asks;
+    const level = side.get(order.price!);
+
+    if(level) {
+      const filtered = level.filter(o => o.orderId !== order.orderId);
+      if(filtered.length === 0) {
+        side.delete(order.price!);
+      } else {
+        side.set(order.price!, filtered);
+      }
+    }
+  }
+
+  order.status = "cancelled";
+  return {
+    orderId,
+    status: 'cancelled'
+  }
+}
