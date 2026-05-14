@@ -28,7 +28,8 @@ export async function signup(req: Request, res: Response): Promise<void> {
       userId: user.id,
       username: user.username,
     });
-  } catch {
+  } catch(err) {
+    console.log(err);
     res.status(409).json({ error: "username already exists" });
   }
 }
@@ -70,6 +71,7 @@ export async function signin(req: Request, res: Response): Promise<void> {
     });
 
   } catch(err) {
+    console.log(err);
     res.status(500).json({
       error: 'internal server error'
     })
