@@ -79,7 +79,7 @@ function seedUserIfNeeded(userId: string) {
   if(!BALANCES.has(userId)) {
     BALANCES.set(userId,{
       USD: { available: 100000, locked: 0},
-      BTC: { available: 50, locked: 50}
+      BTC: { available: 50, locked: 0}
     })
   }
 }
@@ -186,19 +186,40 @@ export function createOrder(payload: Record<string, unknown>) {
     order.filledQty += fillQty;
     resting.filledQty += fillQty;
 
-    const restingRecords = ORDERS.get(resting?.orderId)!;
-    restingRecords.fills.push(fill);
-    restingRecords.filledQty += fillQty;
-    restingRecords.status = restingRecords.filledQty == restingRecords.qty ? 'filled' : 'partially_filled';
-
-    FILLS.push(fill);
-
-    if(restingRecords.status == 'filled') {
+    if(resting.filledQty == resting.qty) {
       level.shift();
       if(level.length == 0) {
         oppoSide?.delete(bestPrice);
       }
     }
+
+    const restingRecords = ORDERS.get(resting?.orderId)!;
+    restingRecords.fills.push(fill);
+    restingRecords.filledQty += fillQty;
+    restingRecords.status = restingRecords.filledQty == restingRecords.qty ? 'filled' : 'partially_filled';
+
+    FILLS.push(fill); 
+
+    const buyerOrder = ORDERS.get(fill.buyOrderId);
+    const sellerOrder = ORDERS.get(fill.sellOrderId);
+
+    if (!buyerOrder || !sellerOrder) {
+      throw new Error('Matched order record missing');
+    }
+
+    const buyerBalance = BALANCES.get(buyerOrder.userId);
+    const sellerBalance = BALANCES.get(sellerOrder.userId);
+
+    if (!buyerBalance || !sellerBalance) {
+      throw new Error('User balance record missing');
+    }
+
+    buyerBalance["USD"]!.available  -= fillQty * bestPrice;
+    buyerBalance["BTC"]!.available  += fillQty;
+
+    sellerBalance["BTC"]!.available -= fillQty;
+    sellerBalance["USD"]!.available += fillQty * bestPrice;
+
   }
   order.status = order.filledQty === 0? 'open' : order.filledQty < order.qty ? 'partially_filled' : 'filled';
 
